@@ -24,6 +24,11 @@ Compile ``cuda_utils.cu`` (Adjust ``PREFIX`` and ``NVCC_PREFIX`` in ``makefile``
 make clean && make
 ```
 
+Install python dependencies (`numpy`, `scipy`, `pillow`)
+```
+pip3 install -r gen_laplacian/requirements.txt
+```
+
 ## Usage
 ### Quick start
 To generate all results using the provided script, simply run

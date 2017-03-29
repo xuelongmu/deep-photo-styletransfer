@@ -15,7 +15,7 @@ def getlaplacian1(i_arr: np.ndarray, consts: np.ndarray, epsilon: float = 0.0000
     consts = spi.morphology.grey_erosion(consts, footprint=np.ones(shape=(win_size * 2 + 1, win_size * 2 + 1)))
 
     indsM = np.reshape(np.array(range(img_size)), newshape=(h, w), order='F')
-    tlen = (-consts[win_size:-win_size, win_size:-win_size] + 1).sum() * (neb_size ** 2)
+    tlen = int((-consts[win_size:-win_size, win_size:-win_size] + 1).sum() * (neb_size ** 2))
 
     row_inds = np.zeros(tlen)
     col_inds = np.zeros(tlen)
