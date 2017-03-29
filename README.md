@@ -5,6 +5,11 @@ Code and data for paper "[Deep Photo Style Transfer](https://arxiv.org/abs/1703.
 **This software is published for academic and non-commercial use only.**
 
 ## Setup
+
+(RECOMMENDED) Build the dockerfile. 
+
+Or...
+
 This code is based on torch. It has been tested on Ubuntu 14.04 LTS.
 
 Dependencies:
