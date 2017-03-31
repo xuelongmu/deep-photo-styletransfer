@@ -20,6 +20,7 @@ cmd:option('-style_seg_idxs', '', 'Style seg idxs')
 cmd:option('-content_seg', '', 'Content segmentation')
 cmd:option('-content_seg_idxs', '', 'Content seg idxs')
 cmd:option('-init_image', 'examples/inputs/init.jpg', 'Initial image')
+cmd:option('-laplacian', 'examples/lap/inti.csv', 'Initial image')
 
 cmd:option('-gpu', 0, 'Zero-indexed ID of the GPU to use; for CPU mode set -gpu = -1')
 
@@ -114,7 +115,7 @@ local function main(params)
   local cnn = loadcaffe.load(params.proto_file, params.model_file, params.backend):float():cuda()
 
   -- load matting laplacian
-  local CSR_fn = 'gen_laplacian/Input_Laplacian_'..tostring(params.patch)..'x'..tostring(params.patch)..'_1e-7_CSR' .. tostring(index) .. '.csv'
+  local CSR_fn = params.laplacian
   print('loading matting laplacian...', CSR_fn)
   local CSR = torch.Tensor(csvigo.load({path=CSR_fn,header='false',mode="raw"})):cuda()
 
