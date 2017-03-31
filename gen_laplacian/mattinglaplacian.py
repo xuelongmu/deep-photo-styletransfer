@@ -1,4 +1,4 @@
-import argparse, glob, os
+import argparse, glob, os, multiprocessing
 import numpy as np
 import scipy.sparse as sps
 import scipy.ndimage as spi
@@ -61,7 +61,7 @@ def im2double(im):
 
 
 def reshape_img(in_img, l=512):
-    in_h, in_w, _ = img.shape
+    in_h, in_w, _ = in_img.shape
     if in_h > in_w:
         h2 = l
         w2 = int(in_w * h2 / in_h)
@@ -79,14 +79,24 @@ if __name__ == "__main__":
     parser.add_argument("-out", "--out_directory", help="Path to examples")
     args = parser.parse_args()
 
+    files=[]
     for filename in glob.iglob(os.path.join(args.directory, '*.png')):
+        files.append(filename)
+
+    def process_file(filename):
         img = spi.imread(filename, mode="RGB")
         img = im2double(reshape_img(img, 700))
         h, w, c = img.shape
-        out_filename = 'Input_Laplacian_3x3_1e-7_CSR' + os.path.basename(filename).replace("in", "").replace(".png", "") + ".csv"
+        out_filename = 'Input_Laplacian_3x3_1e-7_CSR' + os.path.basename(filename).replace("in", "").replace(".png",
+                                                                                                             "") + ".csv"
         CSR = getlaplacian1(img, np.zeros(shape=(h, w)), 1e-7, 1)
         COO = CSR.tocoo()
         zipped = zip(COO.row + 1, COO.col + 1, COO.data)
         with open(os.path.join(args.out_directory, out_filename), 'w') as out_file:
             for row, col, val in zipped:
                 out_file.write("%d,%d,%.15f\n" % (row, col, val))
+
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool.map(process_file, files)
+
+
