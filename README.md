@@ -2,7 +2,7 @@
 Based on "[Deep Photo Style Transfer](https://arxiv.org/abs/1703.07511)".
 Amended from [here](https://github.com/luanfujun/deep-photo-styletransfer).
 PLEASE NOTE RESTRICTIONS ON USAGE OF ORIGINAL CODE.
-###Features
+### Features
 * Matting Laplacian calculations are ~100 times faster than original MATLAB code.
 * No dependency on MATLAB.
 * Consistent image scaling is not managed automatically, rather than having to manually rescale everything.
@@ -24,7 +24,7 @@ Run:
 
 ```python3 gen_all.py <options>```
 
-###Arguments
+### Arguments
 
 ```
 usage: gen_all.py [-h] [-in_dir IN_DIRECTORY] [-style_dir STYLE_DIRECTORY]
