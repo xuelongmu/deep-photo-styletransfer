@@ -12,7 +12,7 @@ import numpy as np
 
 
 def deep_photo(image_list, image_dir, style_dir, in_seg_dir, style_seg_dir, lap_dir,
-               tmp_results_dir, results_dir, width, num_gpus, stage_1_iter, stage_2_iter):
+               tmp_results_dir, results_dir, width, num_gpus, stage_1_iter, stage_2_iter, optimiser):
     num_imgs = len(image_list)
     n = int(math.ceil(float(num_imgs) / num_gpus))
     processes = [None] * num_gpus
@@ -30,12 +30,12 @@ def deep_photo(image_list, image_dir, style_dir, in_seg_dir, style_seg_dir, lap_
                 laplacian_csv = os.path.join(lap_dir, image_name.replace(".png", "") + "_" + str(width) + ".csv")
                 print('working on ' + image_name)
 
-                part1_cmd = ' th /root/deep_photo/neuralstyle_seg.lua -backend cudnn -cudnn_autotune -content_image ' + image + ' -style_image ' + style_image + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
+                part1_cmd = ' th /root/deep_photo/neuralstyle_seg.lua -backend cudnn -cudnn_autotune -optimizer '+optimiser+' -content_image ' + image + ' -style_image ' + style_image + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
                     idx) + ' -num_iterations ' + str(
                     stage_1_iter) + ' -save_iter 100 -print_iter 1 -gpu ' + str(
                     j) + ' -serial ' + tmp_results_dir + ' &&'
 
-                part2_cmd = ' th /root/deep_photo/deepmatting_seg.lua -backend cudnn -cudnn_autotune -content_image ' + image + ' -style_image ' + style_image + ' -init_image ' + os.path.join(
+                part2_cmd = ' th /root/deep_photo/deepmatting_seg.lua -backend cudnn -cudnn_autotune -optimizer '+optimiser+' -content_image ' + image + ' -style_image ' + style_image + ' -init_image ' + os.path.join(
                     tmp_results_dir, "out" + str(idx) + "_t_" + str(
                         stage_1_iter) + ".png") + ' -laplacian ' + laplacian_csv + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
                     idx) + ' -num_iterations ' + str(
@@ -135,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("-lap_dir", "--laplacian_directory", help="Path to laplacians")
     parser.add_argument("-width", "--width", help="Image width", default=512)
     parser.add_argument("-gpus", "--num_gpus", help="Number of GPUs", default=1)
+    parser.add_argument("-opt", "--optimiser", help="Name of optimiser (lbfgs or adam)", default="lbfgs", choices=["lbfgs", "adam"])
     parser.add_argument("-stage_1_iter", "--stage_1_iterations", help="Iterations in stage 1", default=1000)
     parser.add_argument("-stage_2_iter", "--stage_2_iterations", help="Iterations in stage 2", default=1000)
     args = parser.parse_args()
@@ -218,6 +219,7 @@ if __name__ == "__main__":
             coo = csr.tocoo()
             zipped = zip(coo.row + 1, coo.col + 1, coo.data)
             with open(lap_name, 'w') as out_file:
+                out_file.write(str(len(coo.data))+"\n")
                 for row, col, val in zipped:
                     out_file.write("%d,%d,%.15f\n" % (row, col, val))
 
@@ -228,6 +230,6 @@ if __name__ == "__main__":
     deep_photo(good_images, "/tmp/deep_photo/in/", "/tmp/deep_photo/style/", "/tmp/deep_photo/in_seg/",
                "/tmp/deep_photo/style_seg/", args.laplacian_directory, args.temporary_results_directory,
                args.results_directory,
-               width, gpus, s1_iter, s2_iter)
+               width, gpus, s1_iter, s2_iter, args.optimiser)
 
     shutil.rmtree("/tmp/deep_photo/", ignore_errors=True)

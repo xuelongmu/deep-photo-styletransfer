@@ -3,6 +3,7 @@ Based on "[Deep Photo Style Transfer](https://arxiv.org/abs/1703.07511)".
 Amended from [here](https://github.com/luanfujun/deep-photo-styletransfer).
 PLEASE NOTE RESTRICTIONS ON USAGE OF ORIGINAL CODE.
 ### Features
+* Dockerised for ease of installing.
 * Matting Laplacian calculations are ~100 times faster than original MATLAB code.
 * No dependency on MATLAB.
 * Consistent image scaling is not managed automatically, rather than having to manually rescale everything.
@@ -33,7 +34,8 @@ usage: gen_all.py [-h] [-in_dir IN_DIRECTORY] [-style_dir STYLE_DIRECTORY]
                   [-tmp_results_dir TEMPORARY_RESULTS_DIRECTORY]
                   [-results_dir RESULTS_DIRECTORY]
                   [-lap_dir LAPLACIAN_DIRECTORY] [-width WIDTH]
-                  [-gpus NUM_GPUS] [-stage_1_iter STAGE_1_ITERATIONS]
+                  [-gpus NUM_GPUS] [-opt {lbfgs,adam}]
+                  [-stage_1_iter STAGE_1_ITERATIONS]
                   [-stage_2_iter STAGE_2_ITERATIONS]
 
 optional arguments:
@@ -56,10 +58,13 @@ optional arguments:
                         Image width
   -gpus NUM_GPUS, --num_gpus NUM_GPUS
                         Number of GPUs
+  -opt {lbfgs,adam}, --optimiser {lbfgs,adam}
+                        Name of optimiser (lbfgs or adam)
   -stage_1_iter STAGE_1_ITERATIONS, --stage_1_iterations STAGE_1_ITERATIONS
                         Iterations in stage 1
   -stage_2_iter STAGE_2_ITERATIONS, --stage_2_iterations STAGE_2_ITERATIONS
                         Iterations in stage 2
+
 ```
 
 TODO: Document this properly.
