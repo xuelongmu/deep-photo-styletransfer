@@ -6,7 +6,7 @@ PLEASE NOTE RESTRICTIONS ON USAGE OF ORIGINAL CODE.
 * Dockerised for ease of installing.
 * Matting Laplacian calculations are ~100 times faster than original MATLAB code.
 * No dependency on MATLAB.
-* Consistent image scaling is not managed automatically, rather than having to manually rescale everything.
+* Consistent image scaling is managed automatically, rather than having to manually rescale everything.
 * No longer a requirement to use particular filenames and directories.
 
 ## Setup
