@@ -30,12 +30,12 @@ def deep_photo(image_list, image_dir, style_dir, in_seg_dir, style_seg_dir, lap_
                 laplacian_csv = os.path.join(lap_dir, image_name.replace(".png", "") + "_" + str(width) + ".csv")
                 print('working on ' + image_name)
 
-                part1_cmd = ' th /root/deep_photo/neuralstyle_seg.lua -backend cudnn -cudnn_autotune -optimizer '+optimiser+' -content_image ' + image + ' -style_image ' + style_image + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
+                part1_cmd = ' th neuralstyle_seg.lua -backend cudnn -cudnn_autotune -optimizer '+optimiser+' -content_image ' + image + ' -style_image ' + style_image + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
                     idx) + ' -num_iterations ' + str(
                     stage_1_iter) + ' -save_iter 100 -print_iter 1 -gpu ' + str(
                     j) + ' -serial ' + tmp_results_dir + ' &&'
 
-                part2_cmd = ' th /root/deep_photo/deepmatting_seg.lua -backend cudnn -cudnn_autotune -optimizer '+optimiser+' -content_image ' + image + ' -style_image ' + style_image + ' -init_image ' + os.path.join(
+                part2_cmd = ' th deepmatting_seg.lua -backend cudnn -cudnn_autotune -optimizer '+optimiser+' -content_image ' + image + ' -style_image ' + style_image + ' -init_image ' + os.path.join(
                     tmp_results_dir, "out" + str(idx) + "_t_" + str(
                         stage_1_iter) + ".png") + ' -laplacian ' + laplacian_csv + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
                     idx) + ' -num_iterations ' + str(
