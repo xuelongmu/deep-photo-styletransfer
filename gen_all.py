@@ -126,13 +126,14 @@ def reshape_img(in_img, l=512):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-in_dir", "--in_directory", help="Path to inputs")
-    parser.add_argument("-style_dir", "--style_directory", help="Path to styles")
-    parser.add_argument("-in_seg_dir", "--in_seg_directory", help="Path to input segmentation")
-    parser.add_argument("-style_seg_dir", "--style_seg_directory", help="Path to style segmentation")
-    parser.add_argument("-tmp_results_dir", "--temporary_results_directory", help="Path to temporary results directory")
-    parser.add_argument("-results_dir", "--results_directory", help="Path to results directory")
-    parser.add_argument("-lap_dir", "--laplacian_directory", help="Path to laplacians")
+    parser.add_argument("-in_dir", "--in_directory", help="Path to inputs", required=True)
+    parser.add_argument("-style_dir", "--style_directory", help="Path to styles", required=True)
+    parser.add_argument("-in_seg_dir", "--in_seg_directory", help="Path to input segmentation", required=True)
+    parser.add_argument("-style_seg_dir", "--style_seg_directory", help="Path to style segmentation", required=True)
+    parser.add_argument("-tmp_results_dir", "--temporary_results_directory",
+            help="Path to temporary results directory", required=True)
+    parser.add_argument("-results_dir", "--results_directory", help="Path to results directory", required=True)
+    parser.add_argument("-lap_dir", "--laplacian_directory", help="Path to laplacians", required=True)
     parser.add_argument("-width", "--width", help="Image width", default=512)
     parser.add_argument("-gpus", "--num_gpus", help="Number of GPUs", default=1)
     parser.add_argument("-opt", "--optimiser", help="Name of optimiser (lbfgs or adam)", default="lbfgs", choices=["lbfgs", "adam"])
@@ -193,7 +194,7 @@ if __name__ == "__main__":
         image_seg_name = os.path.join(args.in_seg_directory, image_name)
         style_seg_name = os.path.join(args.style_seg_directory, image_name)
         lap_name = os.path.join(args.laplacian_directory,
-                                image_name.replace(".png", "") + "_" + args.width + ".csv")
+                                image_name.replace(".png", "") + "_" + str(args.width) + ".csv")
 
         img = spi.imread(filename, mode="RGB")
         resized_img = reshape_img(img, width)
