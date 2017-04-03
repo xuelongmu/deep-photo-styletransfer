@@ -139,12 +139,12 @@ if __name__ == "__main__":
     parser.add_argument("-opt", "--optimiser", help="Name of optimiser (lbfgs or adam)", default="lbfgs", choices=["lbfgs", "adam"])
     parser.add_argument("-stage_1_iter", "--stage_1_iterations", help="Iterations in stage 1", default=1000)
     parser.add_argument("-stage_2_iter", "--stage_2_iterations", help="Iterations in stage 2", default=1000)
-    parser.add_argument("-lambda", dest="λ", help="Lambda parameter", type=int,
-            default=10000, required=False)
-    parser.add_argument("-f_radius", help="f-radius parameter", type=int,
-            default=15, required=False)
-    parser.add_argument("-f_edge", help="f-edge parameter", type=float,
-            default=0.01, required=False)
+    parser.add_argument("-lambda", "--lambda", dest="λ", help="Lambda parameter", type=int,
+            default=10000)
+    parser.add_argument("-f_radius", "--f_radius", help="f-radius parameter", type=int,
+            default=15)
+    parser.add_argument("-f_edge", "--f_edge", help="f-edge parameter", type=float,
+            default=0.01)
     args = parser.parse_args()
 
     width = int(args.width)
