@@ -40,9 +40,7 @@ def deep_photo(image_list, image_dir, style_dir, in_seg_dir, style_seg_dir, lap_
                     tmp_results_dir, "out" + str(idx) + "_t_" + str(
                         stage_1_iter) + ".png") + ' -laplacian ' + laplacian_csv + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
                     idx) + ' -num_iterations ' + str(
-                    stage_2_iter) + ' -save_iter 100 -print_iter 1 -gpu ' + str(
-                    j) + ' -serial ' + results_dir + ' -f_radius ' +
-                    str(f_radius) + ' -f_edge ' + str(f_edge) + ' ' + '-lambda ' + str(λ) + '&&'
+                    stage_2_iter) + ' -save_iter 100 -print_iter 1 -gpu ' + str( j) + ' -serial ' + results_dir + ' -f_radius ' + str(f_radius) + ' -f_edge ' + str(f_edge) + ' ' + '-lambda ' + str(λ) + '&&'
 
                 cmd = cmd + part1_cmd + part2_cmd
 
