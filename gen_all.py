@@ -13,7 +13,7 @@ import numpy as np
 
 def deep_photo(image_list, image_dir, style_dir, in_seg_dir, style_seg_dir, lap_dir,
                tmp_results_dir, results_dir, width, num_gpus, stage_1_iter,
-               stage_2_iter, optimiser, λ):
+               stage_2_iter, optimiser, λ, f_radius, f_edge):
     num_imgs = len(image_list)
     n = int(math.ceil(float(num_imgs) / num_gpus))
     processes = [None] * num_gpus
@@ -41,7 +41,8 @@ def deep_photo(image_list, image_dir, style_dir, in_seg_dir, style_seg_dir, lap_
                         stage_1_iter) + ".png") + ' -laplacian ' + laplacian_csv + ' -content_seg ' + in_seg_image + ' -style_seg ' + style_seg_image + ' -index ' + str(
                     idx) + ' -num_iterations ' + str(
                     stage_2_iter) + ' -save_iter 100 -print_iter 1 -gpu ' + str(
-                    j) + ' -serial ' + results_dir + ' -f_radius 15 -f_edge 0.01 ' + '-lambda ' + str(λ) + '&&'
+                    j) + ' -serial ' + results_dir + ' -f_radius ' +
+                    str(f_radius) + ' -f_edge ' + str(f_edge) + ' ' + '-lambda ' + str(λ) + '&&'
 
                 cmd = cmd + part1_cmd + part2_cmd
 
@@ -142,6 +143,10 @@ if __name__ == "__main__":
     parser.add_argument("-stage_2_iter", "--stage_2_iterations", help="Iterations in stage 2", default=1000)
     parser.add_argument("-lambda", dest="λ", help="Lambda parameter", type=int,
             default=10000)
+    parser.add_argument("-f_radius", help="f-radius parameter", type=int,
+            default=15)
+    parser.add_argument("-f_edge", help="f-edge parameter", type=float,
+            default=0.01)
     args = parser.parse_args()
 
     width = int(args.width)
