@@ -237,6 +237,7 @@ if __name__ == "__main__":
     deep_photo(good_images, "/tmp/deep_photo/in/", "/tmp/deep_photo/style/", "/tmp/deep_photo/in_seg/",
                "/tmp/deep_photo/style_seg/", args.laplacian_directory, args.temporary_results_directory,
                args.results_directory,
-               width, gpus, s1_iter, s2_iter, args.optimiser, args.λ)
+               width, gpus, s1_iter, s2_iter, args.optimiser, args.λ, args.f_radius,
+               args.f_edge)
 
     shutil.rmtree("/tmp/deep_photo/", ignore_errors=True)
