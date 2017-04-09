@@ -305,9 +305,9 @@ local function main(params)
         filename = params.output_image
       end
 
-      if params.laplacian ~= '' then
-        disp = SmoothLocalAffine(disp, input, params.eps, params.patch, h, w, params.f_radius, params.f_edge)
-      end
+--      if params.laplacian ~= '' then
+--        disp = SmoothLocalAffine(disp, input, params.eps, params.patch, h, w, params.f_radius, params.f_edge)
+--      end
 
       -- Maybe perform postprocessing for color-independent style transfer
       if params.original_colors == 1 then
