@@ -80,7 +80,7 @@ def getlaplacian1(i_arr: np.ndarray, consts: np.ndarray, epsilon: float = 0.0000
             win_inds = win_inds.ravel(order='F')
             win_i = i_arr[i - win_size:i + win_size + 1, j - win_size: j + win_size + 1, :]
             win_i = win_i.reshape((neb_size, c), order='F')
-            win_mu = np.mean(win_i, axis=0).reshape(1, win_size * 2 + 1)
+            win_mu = np.mean(win_i, axis=0).reshape(1, c)
             win_var = np.linalg.inv(
                 np.matmul(win_i.T, win_i) / neb_size - np.matmul(win_mu.T, win_mu) + epsilon / neb_size * np.identity(
                     c))
