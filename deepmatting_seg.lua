@@ -298,16 +298,17 @@ local function main(params)
     local should_save = params.save_iter > 0 and t % params.save_iter == 0
     should_save = should_save or t == params.num_iterations
     if should_save then
+
+      if params.laplacian ~= '' then
+        img = SmoothLocalAffine(img, input, params.eps, params.patch, h, w, params.f_radius, params.f_edge)
+      end
+
       local disp = deprocess(img:double())
       disp = image.minmax{tensor=disp, min=0, max=1}
       local filename = build_filename(params.output_image, t)
       if t == params.num_iterations then
         filename = params.output_image
       end
-
---      if params.laplacian ~= '' then
---        disp = SmoothLocalAffine(disp, input, params.eps, params.patch, h, w, params.f_radius, params.f_edge)
---      end
 
       -- Maybe perform postprocessing for color-independent style transfer
       if params.original_colors == 1 then
