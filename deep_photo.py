@@ -192,7 +192,7 @@ if __name__ == "__main__":
     if args.cudnn_autotune:
         neural_style_args +=["-cudnn_autotune"]
 
-    cmd = 'th deepmatting_seg_new.lua ' + " ".join(neural_style_args)
+    cmd = 'th deepmatting_seg.lua ' + " ".join(neural_style_args)
 
     print("Running "+cmd)
     p = subprocess.Popen(cmd, shell=True)
