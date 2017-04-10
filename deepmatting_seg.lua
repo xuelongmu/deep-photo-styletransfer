@@ -294,30 +294,25 @@ local function main(params)
     end
   end
 
-  local function maybe_save(t)
-    local should_save = params.save_iter > 0 and t % params.save_iter == 0
-    should_save = should_save or t == params.num_iterations
-    if should_save then
-
-      if params.laplacian ~= '' then
-        img = SmoothLocalAffine(img, input, params.eps, params.patch, h, w, params.f_radius, params.f_edge)
-      end
-
-      local disp = deprocess(img:double())
-      disp = image.minmax{tensor=disp, min=0, max=1}
-      local filename = build_filename(params.output_image, t)
-      if t == params.num_iterations then
-        filename = params.output_image
-      end
-
-      -- Maybe perform postprocessing for color-independent style transfer
-      if params.original_colors == 1 then
-        disp = original_colors(content_image, disp)
-      end
-
-      image.save(filename, disp)
-    end
-  end
+--  local function maybe_save(t)
+--    local should_save = params.save_iter > 0 and t % params.save_iter == 0
+--    should_save = should_save or t == params.num_iterations
+--    if should_save then
+--      local disp = deprocess(img:double())
+--      disp = image.minmax{tensor=disp, min=0, max=1}
+--      local filename = build_filename(params.output_image, t)
+--      if t == params.num_iterations then
+--        filename = params.output_image
+--      end
+--
+--      -- Maybe perform postprocessing for color-independent style transfer
+--      if params.original_colors == 1 then
+--        disp = original_colors(content_image, disp)
+--      end
+--
+--      image.save(filename, disp)
+--    end
+--  end
 
   -- Function to evaluate loss and gradient. We run the net forward and
   -- backward to get the gradient, and sum up losses from the loss modules.
@@ -327,17 +322,22 @@ local function main(params)
   local num_calls = 0
   local function feval(x)
     num_calls = num_calls + 1
-    net:forward(x)
-    local grad = net:updateGradInput(x, dy)
-    if params.laplacian ~= '' then
-      -- local output = torch.add(x, meanImage)
-      -- local input  = torch.add(content_image_caffe, meanImage)
-      local output = x
-      local input  = content_image_caffe
+    local grad
 
+    if params.laplacian ~= '' then
+      local output = torch.add(img, meanImage)
+      local input  = torch.add(content_image_caffe, meanImage)
+
+      net:forward(img)
+
+      local gradient_VggNetwork = net:updateGradInput(img, dy)
       local gradient_LocalAffine = MattingLaplacian(output, CSR, h, w):mul(params.lambda)
 
-      grad = torch.add(grad, gradient_LocalAffine)
+      grad = torch.add(gradient_VggNetwork, gradient_LocalAffine)
+    else
+      net:forward(x)
+      grad = net:updateGradInput(x, dy)
+      best = x
     end
 
     local loss = 0
@@ -348,7 +348,31 @@ local function main(params)
       loss = loss + mod.loss
     end
     maybe_print(num_calls, loss)
-    maybe_save(num_calls)
+
+    if num_calls % params.save_iter == 0 then
+      local disp
+      if params.laplacian ~= '' then
+        local output = torch.add(img, meanImage)
+        local input  = torch.add(content_image_caffe, meanImage)
+        disp = SmoothLocalAffine(output, input, params.eps, params.patch, h, w, params.f_radius, params.f_edge)
+      else
+        disp = deprocess(img:double())
+        disp = image.minmax{tensor=disp, min=0, max=1}
+
+        -- Maybe perform postprocessing for color-independent style transfer
+        if params.original_colors == 1 then
+          disp = original_colors(content_image, disp)
+        end
+      end
+
+      local filename = build_filename(params.output_image, num_calls)
+      if num_calls == params.num_iterations then
+        filename = params.output_image
+      end
+
+      image.save(filename, disp)
+    end
+    --maybe_save(num_calls)
 
     collectgarbage()
     -- optim.lbfgs expects a vector for gradients
