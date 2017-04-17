@@ -30,11 +30,11 @@ Run:
 
 ```
 usage: deep_photo.py [-h] [-content_image CONTENT_IMAGE]
-                     [-style_image STYLE_IMAGE]
+                     [-content_seg CONTENT_SEG] [-style_image STYLE_IMAGE]
                      [-style_blend_weights STYLE_BLEND_WEIGHTS]
-                     [-laplacian LAPLACIAN] [-output_image OUTPUT_IMAGE]
-                     [-image_size IMAGE_SIZE] [-gpu GPU]
-                     [-multigpu_strategy MULTIGPU_STRATEGY]
+                     [-style_seg STYLE_SEG] [-laplacian LAPLACIAN]
+                     [-output_image OUTPUT_IMAGE] [-image_size IMAGE_SIZE]
+                     [-gpu GPU] [-multigpu_strategy MULTIGPU_STRATEGY]
                      [-content_weight CONTENT_WEIGHT]
                      [-style_weight STYLE_WEIGHT] [-tv_weight TV_WEIGHT]
                      [-num_iterations NUM_ITERATIONS] [-init {random,image}]
@@ -55,10 +55,13 @@ optional arguments:
   -h, --help            show this help message and exit
   -content_image CONTENT_IMAGE
                         content image location
+  -content_seg CONTENT_SEG
+                        content segmentation location
   -style_image STYLE_IMAGE
                         style image locations
   -style_blend_weights STYLE_BLEND_WEIGHTS
                         style image blending weights
+  -style_seg STYLE_SEG  style segmentation locations
   -laplacian LAPLACIAN  laplacian file location
   -output_image OUTPUT_IMAGE
                         output image name
@@ -108,7 +111,6 @@ optional arguments:
   -eps EPS              matting epsilon
   -f_radius F_RADIUS    f radius
   -f_edge F_EDGE        f edge
-
 ```
 
 ### Examples
