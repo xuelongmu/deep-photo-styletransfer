@@ -111,4 +111,15 @@ optional arguments:
 
 ```
 
-TODO: Document this properly.
+### Examples
+Using images and masks in the examples directory. Assumes 2 GPUs, but can be changed to one (or more for that matter) easily.
+
+#### Masked style transfer
+Example #7 from @luanfujun repo. Results are not identical, but then neither is the process...
+```
+python3 deep_photo.py -content_image examples/waterfront.png -content_seg examples/waterfront_seg.png -style_image examples/city_night.png -style_seg examples/city_night_seg.png -laplacian examples/waterfront700.csv -output_image examples/waterfront_city_night.png -image_size 700 -gpu 0,1 -multigpu_strategy 8
+```
+Multi-style image example
+```
+python3 deep_photo.py -content_image examples/vase.png -content_seg examples/vase_seg.png -style_image examples/fire.png,examples/glass.png -style_seg examples/fire_seg.png,examples/glass_seg.png -laplacian examples/vase700.csv -output_image examples/test.png -image_size 700 -gpu 0,1 -multigpu_strategy 8
+```
