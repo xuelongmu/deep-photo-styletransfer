@@ -6,15 +6,18 @@ require 'optim'
 require 'loadcaffe'
 require 'libcuda_utils'
 
-
 local cmd = torch.CmdLine()
 
 -- Basic options
-cmd:option('-style_image', 'examples/inputs/seated-nude.jpg',
+cmd:option('-style_image', 'style.jpg',
            'Style target image')
 cmd:option('-style_blend_weights', 'nil')
-cmd:option('-content_image', 'examples/inputs/tubingen.jpg',
+cmd:option('-style_seg', 'style_seg.jpg',
+           'Style segmentation image')
+cmd:option('-content_image', 'content.jpg',
            'Content target image')
+cmd:option('-content_seg', 'content_seg.jpg',
+           'Style segmentation image')
 cmd:option('-image_size', 512, 'Maximum height / width of generated image')
 cmd:option('-gpu', '0', 'Zero-indexed ID of the GPU to use; for CPU mode set -gpu = -1')
 cmd:option('-multigpu_strategy', '', 'Index of layers to split the network across GPUs')
@@ -70,6 +73,34 @@ local function main(params)
   content_image = image.scale(content_image, params.image_size, 'bilinear')
   local content_image_caffe = preprocess(content_image):float()
 
+  local CSR
+  local c, h, w
+  if params.laplacian ~= '' then
+  -- load matting laplacian
+    local CSR_fn = params.laplacian
+
+    print('loading matting laplacian...', CSR_fn)
+
+    local csvFile = io.open(CSR_fn, 'r')
+    local ROWS = tonumber(csvFile:read())
+
+    CSR = torch.Tensor(ROWS, 3)
+
+    local i = 0
+    for line in csvFile:lines('*l') do
+      i = i + 1
+      local l = line:split(',')
+      for key, val in ipairs(l) do
+        CSR[i][key] = val
+      end
+    end
+
+    csvFile:close()
+
+    c, h, w = content_image:size(1), content_image:size(2), content_image:size(3)
+
+  end
+
   local style_size = math.ceil(params.style_scale * params.image_size)
   local style_image_list = params.style_image:split(',')
   local style_images_caffe = {}
@@ -99,7 +130,7 @@ local function main(params)
   else
     style_blend_weights = params.style_blend_weights:split(',')
     assert(#style_blend_weights == #style_image_list,
-      '-style_blend_weights and -style_images must have the same number of elements')
+      '-style_blend_weights and -style_image must have the same number of elements')
   end
   -- Normalize the style blending weights so they sum to 1
   local style_blend_sum = 0
@@ -114,6 +145,34 @@ local function main(params)
   local content_layers = params.content_layers:split(",")
   local style_layers = params.style_layers:split(",")
 
+-- segmentation images
+  local style_seg_images_caffe = {}
+  local content_seg = image.load(params.content_seg, 3)
+  local content_seg_caffe = content_seg:float()
+  local style_segs = params.style_seg:split(',')
+  assert(#style_segs == #style_image_list,
+      '-style_seg and -style_image must have the same number of elements')
+  for i, img_path in ipairs(style_segs) do
+    local style_seg = image.load(img_path, 3)
+    local style_seg_caffe = style_seg:float()
+    table.insert(style_seg_images_caffe, style_seg_caffe)
+  end
+  local color_codes = {'blue', 'green', 'black', 'white', 'red', 'yellow', 'grey', 'lightblue', 'purple'}
+  local color_content_masks, color_style_masks = {}, {}
+  for j = 1, #color_codes do
+    local content_mask_j = ExtractMask(content_seg_caffe, color_codes[j], dtype)
+    table.insert(color_content_masks, content_mask_j)
+  end
+  for i=1, #style_image_list do
+    tmp_table = {}
+    for j = 1, #color_codes do
+      local style_mask_i_j = ExtractMask(style_seg_images_caffe[i], color_codes[j], dtype)
+      table.insert(tmp_table, style_mask_i_j)
+    end
+    table.insert(color_style_masks, tmp_table)
+  end
+
+
   -- Set up the network, inserting style and content loss modules
   local content_losses, style_losses = {}, {}
   local next_content_idx, next_style_idx = 1, 1
@@ -123,51 +182,53 @@ local function main(params)
     net:add(tv_mod)
   end
 
-  local CSR
-  local c, h, w
-  if params.laplacian ~= '' then
-  -- load matting laplacian
-    local CSR_fn = params.laplacian
-
-    print('loading matting laplacian...', CSR_fn)
-
-    local csvFile = io.open(CSR_fn, 'r')
-    local ROWS = tonumber(csvFile:read())
-
-    CSR = torch.Tensor(ROWS, 3)
-
-    local i = 0
-    for line in csvFile:lines('*l') do
-      i = i + 1
-      local l = line:split(',')
-      for key, val in ipairs(l) do
-        CSR[i][key] = val
-      end
-    end
-
-    csvFile:close()
-
-    c, h, w = content_image:size(1), content_image:size(2), content_image:size(3)
-
-  end
-
   for i = 1, #cnn do
     if next_content_idx <= #content_layers or next_style_idx <= #style_layers then
       local layer = cnn:get(i)
       local name = layer.name
       local layer_type = torch.type(layer)
       local is_pooling = (layer_type == 'cudnn.SpatialMaxPooling' or layer_type == 'nn.SpatialMaxPooling')
-      if is_pooling and params.pooling == 'avg' then
-        assert(layer.padW == 0 and layer.padH == 0)
-        local kW, kH = layer.kW, layer.kH
-        local dW, dH = layer.dW, layer.dH
-        local avg_pool_layer = nn.SpatialAveragePooling(kW, kH, dW, dH):type(dtype)
-        local msg = 'Replacing max pooling at layer %d with average pooling'
-        print(string.format(msg, i))
-        net:add(avg_pool_layer)
+      local is_conv    = (layer_type == 'nn.SpatialConvolution' or layer_type == 'cudnn.SpatialConvolution')
+      if is_pooling then
+        local pool_layer
+        if params.pooling == 'avg' then
+          assert(layer.padW == 0 and layer.padH == 0)
+          local kW, kH = layer.kW, layer.kH
+          local dW, dH = layer.dW, layer.dH
+          local avg_pool_layer = nn.SpatialAveragePooling(kW, kH, dW, dH):type(dtype)
+          local msg = 'Replacing max pooling at layer %d with average pooling'
+          print(string.format(msg, i))
+          pool_layer=avg_pool_layer
+        else
+          pool_layer=layer
+        end
+        net:add(pool_layer)
+        for k = 1, #color_codes do
+          color_content_masks[k] = image.scale(color_content_masks[k]:float(), math.ceil(color_content_masks[k]:size(2)/2), math.ceil(color_content_masks[k]:size(1)/2)):type(dtype)
+        end
+        for j = 1, #style_image_list do
+          for k = 1, #color_codes do
+            color_style_masks[j][k]   = image.scale(color_style_masks[j][k]:float(),   math.ceil(color_style_masks[j][k]:size(2)/2),   math.ceil(color_style_masks[j][k]:size(1)/2)):type(dtype)
+          end
+          color_style_masks[j] = deepcopy(color_style_masks[j])
+        end
+      elseif is_conv then
+        net:add(layer)
+        local sap = nn.SpatialAveragePooling(3,3,1,1,1,1):type(dtype)
+        for k = 1, #color_codes do
+          color_content_masks[k] = sap:forward(color_content_masks[k]:repeatTensor(1,1,1))[1]:clone()
+        end
+        for j = 1, #style_image_list do
+          for k = 1, #color_style_masks do
+            color_style_masks[j][k]   = sap:forward(color_style_masks[j][k]:repeatTensor(1,1,1))[1]:clone()
+          end
+          color_style_masks[j] = deepcopy(color_style_masks[j])
+        end
       else
         net:add(layer)
       end
+      color_content_masks = deepcopy(color_content_masks)
+
       if name == content_layers[next_content_idx] then
         print("Setting up content layer", i, ":", layer.name)
         local norm = params.normalize_gradients
@@ -179,7 +240,7 @@ local function main(params)
       if name == style_layers[next_style_idx] then
         print("Setting up style layer  ", i, ":", layer.name)
         local norm = params.normalize_gradients
-        local loss_module = nn.StyleLoss(params.style_weight, norm):type(dtype)
+        local loss_module = nn.StyleLoss(params.style_weight, norm, color_style_masks, color_content_masks, color_codes, name):type(dtype)
         net:add(loss_module)
         table.insert(style_losses, loss_module)
         next_style_idx = next_style_idx + 1
@@ -231,6 +292,10 @@ local function main(params)
         module.gradBias = nil
     end
   end
+
+  style_images_caffe=nil
+  style_seg_images_caffe=nil
+
   collectgarbage()
 
   local mean_pixel = torch.CudaTensor({103.939, 116.779, 123.68})
@@ -293,26 +358,6 @@ local function main(params)
       print(string.format('  Total loss: %f', loss))
     end
   end
-
---  local function maybe_save(t)
---    local should_save = params.save_iter > 0 and t % params.save_iter == 0
---    should_save = should_save or t == params.num_iterations
---    if should_save then
---      local disp = deprocess(img:double())
---      disp = image.minmax{tensor=disp, min=0, max=1}
---      local filename = build_filename(params.output_image, t)
---      if t == params.num_iterations then
---        filename = params.output_image
---      end
---
---      -- Maybe perform postprocessing for color-independent style transfer
---      if params.original_colors == 1 then
---        disp = original_colors(content_image, disp)
---      end
---
---      image.save(filename, disp)
---    end
---  end
 
   -- Function to evaluate loss and gradient. We run the net forward and
   -- backward to get the gradient, and sum up losses from the loss modules.
@@ -634,33 +679,60 @@ end
 -- Define an nn Module to compute style loss in-place
 local StyleLoss, parent = torch.class('nn.StyleLoss', 'nn.Module')
 
-function StyleLoss:__init(strength, normalize)
+function StyleLoss:__init(strength, normalize, color_style_masks, color_content_masks, color_codes)
   parent.__init(self)
   self.normalize = normalize or false
   self.strength = strength
-  self.target = torch.Tensor()
+  self.target_grams = {}
+  self.masked_grams = {}
+  self.masked_features = {}
   self.mode = 'none'
-  self.loss = 0
 
   self.gram = nn.GramMatrix()
   self.blend_weight = nil
-  self.G = nil
+
   self.crit = nn.MSECriterion()
+
+  self.color_style_masks = deepcopy(color_style_masks)
+  self.color_content_masks = deepcopy(color_content_masks)
+  self.color_codes = color_codes
+  self.capture_count =1
 end
 
 function StyleLoss:updateOutput(input)
-  self.G = self.gram:forward(input)
-  self.G:div(input:nElement())
+  self.loss = 0
+  local masks
   if self.mode == 'capture' then
-    if self.blend_weight == nil then
-      self.target:resizeAs(self.G):copy(self.G)
-    elseif self.target:nElement() == 0 then
-      self.target:resizeAs(self.G):copy(self.G):mul(self.blend_weight)
-    else
-      self.target:add(self.blend_weight, self.G)
-    end
+    masks = self.color_style_masks[self.capture_count]
+    self.capture_count = self.capture_count +1
   elseif self.mode == 'loss' then
-    self.loss = self.strength * self.crit:forward(self.G, self.target)
+    masks = self.color_content_masks
+    self.color_style_masks=nil
+  end
+  if self.mode ~= 'none' then
+    for j = 1, #self.color_codes do
+      local l_mask_ori = masks[j]:clone()
+      local l_mask = l_mask_ori:repeatTensor(1,1,1):expandAs(input)
+      local l_mean = l_mask_ori:mean()
+      local masked_features = torch.cmul(l_mask, input)
+      local masked_gram = self.gram:forward(masked_features):clone()
+      if l_mean > 0 then
+        masked_gram:div(input:nElement() * l_mean)
+      end
+      if self.mode == 'capture' then
+        if j>#self.target_grams then
+          table.insert(self.target_grams, masked_gram:mul(self.blend_weight))
+          table.insert(self.masked_grams, self.target_grams[j]:clone())
+          table.insert(self.masked_features, masked_features)
+        else
+          self.target_grams[j]:add(masked_gram:mul(self.blend_weight))
+        end
+      elseif self.mode == 'loss' then
+        self.masked_grams[j]=masked_gram
+        self.masked_features[j]=masked_features
+        self.loss = self.loss + self.crit:forward(self.masked_grams[j], self.target_grams[j]) * l_mean * self.strength
+      end
+    end
   end
   self.output = input
   return self.output
@@ -668,11 +740,16 @@ end
 
 function StyleLoss:updateGradInput(input, gradOutput)
   if self.mode == 'loss' then
-    local dG = self.crit:backward(self.G, self.target)
-    dG:div(input:nElement())
-    self.gradInput = self.gram:backward(input, dG)
-    if self.normalize then
-      self.gradInput:div(torch.norm(self.gradInput, 1) + 1e-8)
+    self.gradInput = gradOutput:clone()
+    self.gradInput:zero()
+    for j = 1, #self.color_codes do
+      local dG = self.crit:backward(self.masked_grams[j], self.target_grams[j])
+      dG:div(input:nElement())
+      local gradient = self.gram:backward(self.masked_features[j], dG)
+      if self.normalize then
+        gradient:div(torch.norm(gradient, 1) + 1e-8)
+      end
+      self.gradInput:add(gradient)
     end
     self.gradInput:mul(self.strength)
     self.gradInput:add(gradOutput)
@@ -713,6 +790,65 @@ function TVLoss:updateGradInput(input, gradOutput)
   self.gradInput:mul(self.strength)
   self.gradInput:add(gradOutput)
   return self.gradInput
+end
+
+function ExtractMask(seg, color, dtype)
+  local mask = nil
+  if color == 'green' then
+  	mask = torch.lt(seg[1], 0.1)
+  	mask:cmul(torch.gt(seg[2], 1-0.1))
+  	mask:cmul(torch.lt(seg[3], 0.1))
+  elseif color == 'black' then
+  	mask = torch.lt(seg[1], 0.1)
+  	mask:cmul(torch.lt(seg[2], 0.1))
+  	mask:cmul(torch.lt(seg[3], 0.1))
+  elseif color == 'white' then
+  	mask = torch.gt(seg[1], 1-0.1)
+  	mask:cmul(torch.gt(seg[2], 1-0.1))
+  	mask:cmul(torch.gt(seg[3], 1-0.1))
+  elseif color == 'red' then
+    mask = torch.gt(seg[1], 1-0.1)
+    mask:cmul(torch.lt(seg[2], 0.1))
+    mask:cmul(torch.lt(seg[3], 0.1))
+  elseif color == 'blue' then
+    mask = torch.lt(seg[1], 0.1)
+    mask:cmul(torch.lt(seg[2], 0.1))
+    mask:cmul(torch.gt(seg[3], 1-0.1))
+  elseif color == 'yellow' then
+    mask = torch.gt(seg[1], 1-0.1)
+    mask:cmul(torch.gt(seg[2], 1-0.1))
+    mask:cmul(torch.lt(seg[3], 0.1))
+  elseif color == 'grey' then
+    mask = torch.cmul(torch.gt(seg[1], 0.5-0.1), torch.lt(seg[1], 0.5+0.1))
+    mask:cmul(torch.cmul(torch.gt(seg[2], 0.5-0.1), torch.lt(seg[2], 0.5+0.1)))
+    mask:cmul(torch.cmul(torch.gt(seg[3], 0.5-0.1), torch.lt(seg[3], 0.5+0.1)))
+  elseif color == 'lightblue' then
+    mask = torch.lt(seg[1], 0.1)
+    mask:cmul(torch.gt(seg[2], 1-0.1))
+    mask:cmul(torch.gt(seg[3], 1-0.1))
+  elseif color == 'purple' then
+    mask = torch.gt(seg[1], 1-0.1)
+    mask:cmul(torch.lt(seg[2], 0.1))
+    mask:cmul(torch.gt(seg[3], 1-0.1))
+  else
+  	print('ExtractMask(): color not recognized, color = ', color)
+  end
+  return mask:type(dtype)
+end
+
+function deepcopy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[deepcopy(orig_key)] = deepcopy(orig_value)
+        end
+        setmetatable(copy, deepcopy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
 end
 
 

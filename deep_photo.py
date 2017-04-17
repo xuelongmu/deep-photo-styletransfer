@@ -76,8 +76,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-content_image", help="content image location", default='content.png')
+    parser.add_argument("-content_seg", help="content segmentation location", default='')
     parser.add_argument("-style_image", help="style image locations", default='style.png')
     parser.add_argument("-style_blend_weights", help="style image blending weights", default="")
+    parser.add_argument("-style_seg", help="style segmentation locations", default='style_seg.png')
     parser.add_argument("-laplacian", help="laplacian file location", default='laplacian.csv')
     parser.add_argument("-output_image", help="output image name", default='out.png')
 
@@ -90,7 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("-tv_weight", help="tv weight", default=0.001)
     parser.add_argument("-num_iterations", help="iterations", default=2000)
     # parser.add_argument("-normalize_gradients", help="gradient normalisation", action='store_true')
-    parser.add_argument("-init", help="initialisation type", default="image", choices=["random", "image"])
+    parser.add_argument("-init", help="initialisation type", default="random", choices=["random", "image"])
     parser.add_argument("-init_image", help="initial image", default="")
     parser.add_argument("-optimizer", help="optimiser", default="lbfgs", choices=["lbfgs", "adam"])
     parser.add_argument("-learning_rate", help="learning rate (adam only)", default=1)
@@ -121,16 +123,47 @@ if __name__ == "__main__":
 
     img = spi.imread(args.content_image, mode="RGB")
     resized_img = reshape_img(img, img_size)
+    content_h, content_w, _ = resized_img.shape
     tmp_content_name=args.content_image.replace(".png",args.image_size+".png")
     spm.imsave(tmp_content_name, resized_img)
 
-    if args.init_image=="":
-        args.init_image=tmp_content_name
+    if args.content_seg=="":
+        resized_seg_img = resized_img.copy()
+        resized_seg_img.fill(0)
+        tmp_content_seg_name = tmp_content_name.replace(".png","_seg.png")
+    else:
+        seg_img = spi.imread(args.content_seg, mode="RGB")
+        resized_seg_img = spm.imresize(seg_img, (content_h, content_w))
+        tmp_content_seg_name = args.content_seg.replace(".png", args.image_size + ".png")
+    spm.imsave(tmp_content_seg_name, resized_seg_img)
 
-    style_img = spi.imread(args.style_image, mode="RGB")
-    resized_style_img = reshape_img(style_img, img_size)
-    tmp_style_name = args.style_image.replace(".png", args.image_size + ".png")
-    spm.imsave(tmp_style_name, resized_style_img)
+    style_images = args.style_image.split(",")
+
+    if args.style_seg!="":
+        style_segs = args.style_seg.split(",")
+        assert len(style_images)==len(style_segs), '-style_image and -style_seg must have the same number of elements'
+
+    tmp_style_names = []
+    tmp_style_seg_names=[]
+    for i, style_image in enumerate(style_images):
+
+        style_img = spi.imread(style_image, mode="RGB")
+        resized_style_img = reshape_img(style_img, img_size)
+        style_h, style_w, _ = resized_style_img.shape
+        tmp_style_name = style_image.replace(".png", args.image_size + ".png")
+        spm.imsave(tmp_style_name, resized_style_img)
+        tmp_style_names.append(tmp_style_name)
+
+        if args.style_seg == "":
+            resized_style_seg_img = resized_style_img.copy()
+            resized_style_seg_img.fill(0)
+            tmp_style_seg_name = tmp_style_name.replace(".png", "_seg.png")
+        else:
+            style_seg_img = spi.imread(style_segs[i], mode="RGB")
+            resized_style_seg_img = spm.imresize(style_seg_img, (style_h, style_w))
+            tmp_style_seg_name = style_segs[i].replace(".png", args.image_size + ".png")
+        tmp_style_seg_names.append(tmp_style_seg_name)
+        spm.imsave(tmp_style_seg_name, resized_style_seg_img)
 
     if not os.path.exists(args.laplacian):
         print("Calculating matting laplacian for " + str(args.content_image) + " as " + args.laplacian + "...")
@@ -145,7 +178,7 @@ if __name__ == "__main__":
                 out_file.write("%d,%d,%.15f\n" % (row, col, val))
 
     neural_style_args = ["-content_image", str(tmp_content_name),
-                         "-style_image", str(tmp_style_name),
+                         "-style_image", str(",".join(tmp_style_names)),
                          "-laplacian", str(args.laplacian),
                          "-output_image", str(args.output_image),
                          "-image_size", str(args.image_size),
@@ -174,6 +207,12 @@ if __name__ == "__main__":
                          "-f_radius", str(args.f_radius),
                          "-f_edge", str(args.f_edge)]
 
+    if args.content_seg!="":
+        neural_style_args+=["-content_seg", str(tmp_content_seg_name)]
+
+    if args.style_seg!="":
+        neural_style_args+=["-style_seg", str(",".join(tmp_style_seg_names))]
+
     if args.style_blend_weights!="":
         neural_style_args+=["-style_blend_weights", str(args.style_blend_weights)]
 
@@ -195,7 +234,7 @@ if __name__ == "__main__":
     cmd = 'th deepmatting_seg.lua ' + " ".join(neural_style_args)
 
     print("Running "+cmd)
-    p = subprocess.Popen(cmd, shell=True)
+    p = subprocess.Popen("exec bash -c '"+cmd+"'", shell=True)
     p.wait()
 
     shutil.rmtree("/tmp/deep_photo/", ignore_errors=True)
