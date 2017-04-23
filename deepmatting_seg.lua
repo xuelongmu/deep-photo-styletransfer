@@ -21,7 +21,8 @@ cmd:option('-content_seg', 'content_seg.jpg',
 cmd:option('-image_size', 512, 'Maximum height / width of generated image')
 cmd:option('-gpu', '0', 'Zero-indexed ID of the GPU to use; for CPU mode set -gpu = -1')
 cmd:option('-multigpu_strategy', '', 'Index of layers to split the network across GPUs')
-cmd:option('-laplacian', 'laplacian.csv', 'matting laplacian')
+cmd:option('-laplacian', '', 'matting laplacian')
+cmd:option('-color_codes', 'blue,green,black,white,red,yellow,grey,lightblue,purple', 'Colors used in content mask')
 
 -- Optimization options
 cmd:option('-content_weight', 5e0)
@@ -157,7 +158,7 @@ local function main(params)
     local style_seg_caffe = style_seg:float()
     table.insert(style_seg_images_caffe, style_seg_caffe)
   end
-  local color_codes = {'blue', 'green', 'black', 'white', 'red', 'yellow', 'grey', 'lightblue', 'purple'}
+  local color_codes = params.color_codes:split(",")
   local color_content_masks, color_style_masks = {}, {}
   for j = 1, #color_codes do
     local content_mask_j = ExtractMask(content_seg_caffe, color_codes[j], dtype)
