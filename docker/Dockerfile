@@ -1,10 +1,10 @@
-FROM nvidia/cuda:8.0-cudnn5-devel-ubuntu14.04
+FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu16.04
 
 LABEL maintainer "martin@martin-benson.com"
 
 # Install dependencies
 RUN apt-get update && \
-    apt-get install --assume-yes git libprotobuf-dev libopenblas-dev liblapack-dev protobuf-compiler wget python3-pip
+    apt-get install --assume-yes git libprotobuf-dev libopenblas-dev liblapack-dev protobuf-compiler wget python3-pip sudo
     
 RUN git clone https://github.com/torch/distro.git ~/torch --recursive && \
     cd ~/torch && \
