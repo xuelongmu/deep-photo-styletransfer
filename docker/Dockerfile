@@ -31,4 +31,4 @@ RUN source /root/.bashrc && \
     sh models/download_models.sh
 
 WORKDIR /root/deep_photo
-RUN make clean && make && pip3 install numpy scipy Pillow
+RUN make clean && make && pip3 install numpy scipy==1.1.0 Pillow
