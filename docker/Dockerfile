@@ -6,7 +6,7 @@ LABEL maintainer "martin@martin-benson.com"
 RUN apt-get update && \
     apt-get install --assume-yes git libprotobuf-dev libopenblas-dev liblapack-dev protobuf-compiler wget python3-pip sudo
     
-RUN git clone https://github.com/torch/distro.git ~/torch --recursive && \
+RUN git clone https://github.com/nagadomi/distro.git ~/torch --recursive && \
     cd ~/torch && \
     bash install-deps && \
     ./install.sh    
